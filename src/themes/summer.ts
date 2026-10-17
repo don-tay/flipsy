@@ -23,7 +23,7 @@ export const summer: Theme = {
   },
   page: 'linear-gradient(160deg,#ffe9c7 0%,#ffd2b0 60%,#ffb9a0 100%)',
   cardBack:
-    'radial-gradient(circle at 50% 45%,#ffd166 0 22%,transparent 23%),repeating-linear-gradient(135deg,#ff8c5a 0 8px,#ff7a45 8px 16px)',
+    'radial-gradient(circle at 50% 45%,#ffd98a 0 18%,transparent 19%),repeating-linear-gradient(135deg,#f59a6c 0 8px,#f28f5f 8px 16px)',
   cardBackEdge: '#c9502a',
   radius: 28,
   stroke: 1.6,

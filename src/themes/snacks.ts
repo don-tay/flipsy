@@ -22,7 +22,7 @@ export const snacks: Theme = {
     paper: '#ffffff',
   },
   page: 'linear-gradient(135deg,#ffd6e8 0%,#e3d4ff 55%,#d0e8ff 100%)',
-  cardBack: 'radial-gradient(circle,#fff 2.5px,transparent 3.5px) 0 0/14px 14px,#ff8fc0',
+  cardBack: 'radial-gradient(circle,#ffe3ef 2px,transparent 3px) 0 0/14px 14px,#f59cc4',
   cardBackEdge: '#e0508f',
   radius: 40,
   stroke: 1.7,
