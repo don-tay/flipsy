@@ -3,9 +3,10 @@ import { Session, type SessionView } from '../engine/session';
 import type { Settings } from '../lib/storage';
 import { getTheme } from '../themes';
 import { GameScreen } from './GameScreen';
+import { settingsEdit } from './settingsEdit';
 import { useApplyTheme } from './useTheme';
 
-export function Local({ settings, onToggleMute, onLeave }: { settings: Settings; onToggleMute: () => void; onLeave: () => void }) {
+export function Local({ settings, onSettings, onToggleMute, onLeave }: { settings: Settings; onSettings: (patch: Partial<Settings>) => void; onToggleMute: () => void; onLeave: () => void }) {
   const [session] = useState(() => {
     const s = new Session(
       {
@@ -19,7 +20,7 @@ export function Local({ settings, onToggleMute, onLeave }: { settings: Settings;
     return s;
   });
   const [view, setView] = useState<SessionView>(() => session.view());
-  useApplyTheme(getTheme(session.config.themeId));
+  useApplyTheme(getTheme(view.config.themeId));
 
   useEffect(() => {
     const unsubscribe = session.subscribe(() => setView(session.view()));
@@ -39,6 +40,7 @@ export function Local({ settings, onToggleMute, onLeave }: { settings: Settings;
       onFlip={(i) => session.flip(session.game?.turn ?? 0, i)}
       onRematch={() => session.requestRematch(0)}
       onLeave={onLeave}
+      edit={settingsEdit(session, settings, onSettings)}
     />
   );
 }

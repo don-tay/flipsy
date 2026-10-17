@@ -105,6 +105,20 @@ describe('Session', () => {
     expect(s.game!.scores).toEqual([0, 0]);
   });
 
+  it('settings change only between games, and apply to the rematch', () => {
+    const s = started(config, 0);
+    s.updateSettings({ themeId: 'sports', timerSec: null });
+    expect(s.config.themeId).toBe('summer');
+    finish(s);
+    s.updateSettings({ themeId: 'sports', timerSec: null });
+    expect(s.config).toMatchObject({ themeId: 'sports', timerSec: null });
+    s.requestRematch(0);
+    s.requestRematch(1);
+    vi.advanceTimersByTime(120_000);
+    expect(s.game!.turn).toBe(1);
+    expect(s.game!.scores).toEqual([0, 0]);
+  });
+
   it('rematch is immediate in local mode', () => {
     const s = new Session(config, true);
     s.startGame(0);

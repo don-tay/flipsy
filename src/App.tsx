@@ -52,10 +52,10 @@ export function App() {
   if (room)
     return (
       <Suspense fallback={null}>
-        <Room key={room} roomId={room} settings={settings} onToggleMute={toggleMute} onHome={home} />
+        <Room key={room} roomId={room} settings={settings} onSettings={update} onToggleMute={toggleMute} onHome={home} />
       </Suspense>
     );
-  if (hash === '#/local') return <Local settings={settings} onToggleMute={toggleMute} onLeave={home} />;
+  if (hash === '#/local') return <Local settings={settings} onSettings={update} onToggleMute={toggleMute} onLeave={home} />;
   if (hash === '#/themes') return <ThemesPreview />;
   return <Home settings={settings} onChange={update} onLocal={() => go('#/local')} onOnline={createRoom} />;
 }

@@ -110,6 +110,13 @@ export class Session {
     this.changed();
   }
 
+  /** Theme and timer can only change between games. */
+  updateSettings(patch: Partial<Pick<Config, 'themeId' | 'timerSec'>>): void {
+    if (this.game?.phase !== 'done') return;
+    this.config = { ...this.config, ...patch };
+    this.changed();
+  }
+
   setPaused(paused: boolean): void {
     if (this.paused === paused) return;
     this.paused = paused;

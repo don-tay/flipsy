@@ -4,6 +4,8 @@ import type { SessionView } from '../engine/session';
 import { play } from '../lib/fx';
 import { getTheme } from '../themes';
 import { Board } from './Board';
+import { ThemePicker, TimerField } from './SettingsFields';
+import type { SettingsEdit } from './settingsEdit';
 import { SoundToggle } from './SoundToggle';
 
 interface Props {
@@ -17,6 +19,8 @@ interface Props {
   onRematch: () => void;
   onLeave: () => void;
   banner?: ReactNode;
+  /** Present when this player may change theme and timer before the rematch. */
+  edit?: SettingsEdit;
 }
 
 const emptyGame = (): Game => ({
@@ -29,7 +33,7 @@ const emptyGame = (): Game => ({
   turnSeq: 0,
 });
 
-export function GameScreen({ view, mySeat, online, muted, onToggleMute, onFlip, onRematch, onLeave, banner }: Props) {
+export function GameScreen({ view, mySeat, online, muted, onToggleMute, onFlip, onRematch, onLeave, banner, edit }: Props) {
   const theme = getTheme(view.config.themeId);
   const { names } = view.config;
   const game = view.game ?? emptyGame();
@@ -136,6 +140,15 @@ export function GameScreen({ view, mySeat, online, muted, onToggleMute, onFlip, 
             {online && mySeat !== null && view.rematch[other(mySeat)] && !view.rematch[mySeat] && (
               <p>{names[other(mySeat)]} wants a rematch!</p>
             )}
+            {edit && (
+              <details className="settings-edit">
+                <summary>Change theme or timer</summary>
+                <h2 id="rematch-theme-h" className="sr-only">Theme</h2>
+                <ThemePicker themeId={edit.themeId} onSelect={(themeId) => edit.onChange({ themeId })} labelledBy="rematch-theme-h" />
+                <TimerField on={edit.timerOn} seconds={edit.timerSec} onChange={edit.onChange} />
+              </details>
+            )}
+            {online && !edit && <p className="hint">The host can change the theme and timer.</p>}
             <div className="row">
               <button
                 type="button"

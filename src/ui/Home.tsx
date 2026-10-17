@@ -1,7 +1,5 @@
-import { THEMES, strokeColor, tileColor, themeVars } from '../themes';
-import type { Theme } from '../themes/types';
 import type { Settings } from '../lib/storage';
-import { ItemIcon } from './ItemIcon';
+import { ThemePicker, TimerField } from './SettingsFields';
 import { SoundToggle } from './SoundToggle';
 
 interface Props {
@@ -31,11 +29,7 @@ export function Home({ settings, onChange, onLocal, onOnline }: Props) {
 
       <section className="panel" aria-labelledby="theme-h">
         <h2 id="theme-h">Pick a theme</h2>
-        <div className="themes" role="radiogroup" aria-labelledby="theme-h">
-          {THEMES.map((t) => (
-            <ThemeChoice key={t.id} theme={t} selected={t.id === settings.themeId} onSelect={() => onChange({ themeId: t.id })} />
-          ))}
-        </div>
+        <ThemePicker themeId={settings.themeId} onSelect={(themeId) => onChange({ themeId })} labelledBy="theme-h" />
       </section>
 
       <section className="panel">
@@ -48,54 +42,12 @@ export function Home({ settings, onChange, onLocal, onOnline }: Props) {
           <span>Second player (same device)</span>
           <input value={settings.nick2} maxLength={14} placeholder="Player 2" onChange={(e) => onChange({ nick2: e.target.value })} />
         </label>
-        <div className="field">
-          <label className="check">
-            <input type="checkbox" checked={settings.timerOn} onChange={(e) => onChange({ timerOn: e.target.checked })} />
-            <span>Turn timer</span>
-          </label>
-          <div className="slider" aria-hidden={!settings.timerOn} style={{ opacity: settings.timerOn ? 1 : 0.45 }}>
-            <input
-              type="range"
-              min={10}
-              max={30}
-              step={1}
-              value={settings.timerSec}
-              disabled={!settings.timerOn}
-              aria-label="Seconds per turn"
-              onChange={(e) => onChange({ timerSec: Number(e.target.value) })}
-            />
-            <output>{settings.timerSec}s</output>
-          </div>
-        </div>
+        <TimerField on={settings.timerOn} seconds={settings.timerSec} onChange={onChange} />
       </section>
 
       <footer className="foot">
         Icons: Hugeicons Free &amp; Tabler (MIT). <a href="./licenses.txt">Licences</a> · <a href="#/themes">All icons</a>
       </footer>
     </main>
-  );
-}
-
-function ThemeChoice({ theme, selected, onSelect }: { theme: Theme; selected: boolean; onSelect: () => void }) {
-  const vars = themeVars(theme);
-  return (
-    <button
-      type="button"
-      role="radio"
-      aria-checked={selected}
-      className={`theme-choice ${selected ? 'selected' : ''}`}
-      onClick={onSelect}
-      style={{ background: theme.colors.surface, color: theme.colors.text, fontFamily: theme.font, borderColor: selected ? theme.colors.accent : 'transparent', ['--accent' as string]: vars['--accent'] }}
-    >
-      <span className="mini">
-        {[0, 1, 2, 3].map((i) => (
-          <span key={i} style={{ background: tileColor(theme, i), color: strokeColor(theme, i), borderRadius: `${theme.radius}%` }}>
-            <ItemIcon icon={theme.items[i].icon} stroke={theme.stroke} />
-          </span>
-        ))}
-      </span>
-      <strong>{theme.name}</strong>
-      <small style={{ color: theme.colors.muted }}>{theme.tagline}</small>
-    </button>
   );
 }

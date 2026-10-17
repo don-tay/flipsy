@@ -55,8 +55,15 @@ test('local: full two-player game with rematch', async ({ page }) => {
   const dialog = page.getByRole('dialog', { name: 'Game over' });
   await expect(dialog).toBeVisible();
   await expect(dialog.locator('h1')).toHaveText(/wins!|draw/);
+  const accent = () => page.evaluate(() => document.documentElement.style.getPropertyValue('--accent'));
+  expect(await accent()).toBe('#d9381e');
+  await dialog.getByText('Change theme or timer').click();
+  await dialog.getByRole('radio', { name: /Sports Day/ }).click();
+  expect(await accent()).toBe('#ffcf33');
+  await dialog.getByLabel('Turn timer').check();
   await dialog.getByRole('button', { name: 'Rematch' }).click();
   await expect(dialog).toBeHidden();
+  await expect(page.locator('.timer')).toBeVisible();
   await expect(page.locator('.card.matched')).toHaveCount(0);
 });
 

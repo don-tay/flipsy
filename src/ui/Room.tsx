@@ -4,12 +4,14 @@ import { HostLink, GuestLink } from '../net/room';
 import { deleteHostRoom, guestToken, loadHostRoom, saveHostRoom, type Settings } from '../lib/storage';
 import { getTheme } from '../themes';
 import { GameScreen } from './GameScreen';
+import { settingsEdit } from './settingsEdit';
 import { Notice } from './Notice';
 import { useApplyTheme } from './useTheme';
 
 interface Props {
   roomId: string;
   settings: Settings;
+  onSettings: (patch: Partial<Settings>) => void;
   onToggleMute: () => void;
   onHome: () => void;
 }
@@ -20,7 +22,7 @@ export default function Room(props: Props) {
 
 const roomUrl = (id: string) => `${location.origin}${location.pathname}#/r/${id}`;
 
-function HostRoom({ roomId, settings, onToggleMute, onHome }: Props) {
+function HostRoom({ roomId, settings, onSettings, onToggleMute, onHome }: Props) {
   const [session] = useState(() => Session.restore(loadHostRoom(roomId)!));
   const [view, setView] = useState<SessionView>(() => session.view());
   const [abandoned, setAbandoned] = useState(false);
@@ -73,6 +75,7 @@ function HostRoom({ roomId, settings, onToggleMute, onHome }: Props) {
       onFlip={(i) => session.flip(0, i)}
       onRematch={() => session.requestRematch(0)}
       onLeave={leave}
+      edit={settingsEdit(session, settings, onSettings)}
       banner={view.status === 'playing' && !guestHere ? `Waiting for ${view.config.names[1]} to reconnect…` : null}
     />
   );
