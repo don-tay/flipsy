@@ -1,5 +1,6 @@
 import { joinRoom, type JsonValue as Json, type Room } from 'trystero';
-import type { Session, SessionView } from '../engine/session';
+import { isMatch } from '../engine/game';
+import { MATCH_DELAY_MS, MISS_DELAY_MS, type Session, type SessionView } from '../engine/session';
 
 const APP_ID = 'flipsy-don-tay-v1';
 export const ABANDON_AFTER_MS = 5 * 60 * 1000;
@@ -18,6 +19,7 @@ function actions(room: Room) {
     flip: room.makeAction<Json>('flip'),
     rematch: room.makeAction<Json>('rematch'),
     full: room.makeAction<Json>('full'),
+    seen: room.makeAction<Json>('seen'),
   };
 }
 
@@ -53,6 +55,9 @@ export class HostLink {
     };
     this.a.rematch.onMessage = (_data, { peerId }) => {
       if (peerId === this.guestPeer) session.requestRematch(1);
+    };
+    this.a.seen.onMessage = (data, { peerId }) => {
+      if (peerId === this.guestPeer) session.ack((data as unknown as { turnSeq: number }).turnSeq);
     };
     this.room.onPeerLeave = (peerId) => {
       if (peerId === this.guestPeer) this.guestLeft();
@@ -125,6 +130,8 @@ export class GuestLink {
   private hostPeer: string | null = null;
   private abandonTimer: ReturnType<typeof setTimeout> | null = null;
   private connectTimer: ReturnType<typeof setTimeout> | null;
+  private ackTimer: ReturnType<typeof setTimeout> | null = null;
+  private ackedSeq = -1;
 
   constructor(roomId: string, hello: Hello, h: GuestLinkHandlers) {
     this.room = joinRoom({ appId: APP_ID }, roomId);
@@ -136,7 +143,9 @@ export class GuestLink {
       if (!this.hostPeer) this.hostPeer = peerId;
       if (peerId !== this.hostPeer) return;
       this.clearTimers();
-      h.onView(data as unknown as SessionView);
+      const view = data as unknown as SessionView;
+      h.onView(view);
+      this.confirmReveal(view);
     };
     this.a.full.onMessage = () => {
       this.clearTimers();
@@ -145,9 +154,21 @@ export class GuestLink {
     this.room.onPeerLeave = (peerId) => {
       if (peerId !== this.hostPeer) return;
       this.hostPeer = null;
+      this.ackedSeq = -1;
       h.onHostLeft();
       this.abandonTimer = setTimeout(h.onAbandoned, ABANDON_AFTER_MS);
     };
+  }
+
+  /** Once a pair has been on screen for the full delay, tell the host it may turn the cards back. */
+  private confirmReveal(view: SessionView): void {
+    const g = view.game;
+    if (!g || g.phase !== 'resolve' || g.turnSeq === this.ackedSeq) return;
+    this.ackedSeq = g.turnSeq;
+    if (this.ackTimer) clearTimeout(this.ackTimer);
+    this.ackTimer = setTimeout(() => {
+      if (this.hostPeer) void this.a.seen.send({ turnSeq: g.turnSeq }, { target: this.hostPeer });
+    }, isMatch(g) ? MATCH_DELAY_MS : MISS_DELAY_MS);
   }
 
   flip(index: number): void {
@@ -166,6 +187,7 @@ export class GuestLink {
 
   leave(): void {
     this.clearTimers();
+    if (this.ackTimer) clearTimeout(this.ackTimer);
     void this.room.leave();
   }
 }

@@ -69,3 +69,29 @@ test('online: guest and host can reload mid-game and resume', async ({ browser }
   await expect(host.getByText('Waiting for')).toBeHidden({ timeout: 60_000 });
   await expect(guest.getByText('disconnected')).toBeHidden({ timeout: 60_000 });
 });
+
+test('online: a miss is shown to both players, then the turn passes to the other player', async ({ browser }) => {
+  test.setTimeout(150_000);
+  const host = await (await browser.newContext()).newPage();
+  const guest = await (await browser.newContext()).newPage();
+  await host.goto('/');
+  await host.getByRole('button', { name: 'Play online with a friend' }).click();
+  await guest.goto(await host.getByLabel('Game link').inputValue());
+
+  const hostTurn = host.getByText('Your turn');
+  const guestTurn = guest.getByText('Your turn');
+  await Promise.any([hostTurn.waitFor({ timeout: 30_000 }), guestTurn.waitFor({ timeout: 30_000 })]);
+  const [mover, watcher] = (await hostTurn.isVisible()) ? [host, guest] : [guest, host];
+
+  // Try pairs of cards until one misses (a lucky match just gives the mover another go).
+  for (let i = 0; i < 60; i += 2) {
+    await mover.locator(`[data-index="${i}"]`).click();
+    await mover.locator(`[data-index="${i + 1}"]`).click();
+    await expect(watcher.locator('.card.up')).toHaveCount(2, { timeout: 15_000 });
+    await expect(watcher.locator('.card.up')).toHaveCount(0, { timeout: 15_000 });
+    if ((await watcher.locator('.card.matched').count()) === 0) {
+      await expect(watcher.getByText('Your turn')).toBeVisible({ timeout: 10_000 });
+      return;
+    }
+  }
+});

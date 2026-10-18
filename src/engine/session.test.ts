@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { MISS_DELAY_MS, Session } from './session';
+import { ACK_GRACE_MS, MISS_DELAY_MS, Session } from './session';
 import { Game } from './game';
 
 const config = { themeId: 'summer', timerSec: 15 as number | null, names: ['A', 'B'] as [string, string] };
@@ -9,8 +9,8 @@ const nonPartner = (g: Game, i: number) => g.cards.findIndex((c, j) => j !== i &
 beforeEach(() => vi.useFakeTimers());
 afterEach(() => vi.useRealTimers());
 
-const started = (cfg = config, first: 0 | 1 = 0) => {
-  const s = new Session(cfg);
+const started = (cfg = config, first: 0 | 1 = 0, local = true) => {
+  const s = new Session(cfg, local);
   s.startGame(first);
   return s;
 };
@@ -26,6 +26,39 @@ describe('Session', () => {
     expect(s.game!.flipped).toHaveLength(2);
     vi.advanceTimersByTime(MISS_DELAY_MS);
     expect(s.game!.turn).toBe(1);
+    expect(s.game!.phase).toBe('play');
+  });
+
+  it('online: waits for the guest to confirm it has shown the pair before turning cards back', () => {
+    const s = started(config, 0, false);
+    s.flip(0, 0);
+    s.flip(0, nonPartner(s.game!, 0));
+    vi.advanceTimersByTime(MISS_DELAY_MS + 2000);
+    expect(s.game!.phase).toBe('resolve');
+    expect(s.game!.flipped).toHaveLength(2);
+    s.ack(s.game!.turnSeq + 1);
+    expect(s.game!.phase).toBe('resolve');
+    s.ack(s.game!.turnSeq);
+    expect(s.game!.phase).toBe('play');
+    expect(s.game!.turn).toBe(1);
+  });
+
+  it('online: confirming early does not shorten the reveal', () => {
+    const s = started(config, 0, false);
+    s.flip(0, 0);
+    s.flip(0, nonPartner(s.game!, 0));
+    s.ack(s.game!.turnSeq);
+    vi.advanceTimersByTime(MISS_DELAY_MS - 1);
+    expect(s.game!.phase).toBe('resolve');
+    vi.advanceTimersByTime(1);
+    expect(s.game!.phase).toBe('play');
+  });
+
+  it('online: gives up waiting for a silent guest after the grace period', () => {
+    const s = started(config, 0, false);
+    s.flip(0, 0);
+    s.flip(0, nonPartner(s.game!, 0));
+    vi.advanceTimersByTime(MISS_DELAY_MS + ACK_GRACE_MS);
     expect(s.game!.phase).toBe('play');
   });
 
@@ -88,12 +121,13 @@ describe('Session', () => {
       const i = g.cards.findIndex((c) => c.status === 'down');
       s.flip(g.turn, i);
       s.flip(g.turn, partner(s.game!, i));
+      s.ack(s.game!.turnSeq);
       vi.advanceTimersByTime(MISS_DELAY_MS);
     }
   };
 
   it('rematch needs both players online, and the loser goes first', () => {
-    const s = started(config, 0);
+    const s = started(config, 0, false);
     finish(s);
     expect(s.game!.scores).toEqual([32, 0]);
     s.requestRematch(0);

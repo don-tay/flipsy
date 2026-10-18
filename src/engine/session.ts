@@ -27,6 +27,8 @@ export interface Saved {
 export const MATCH_DELAY_MS = 600;
 export const MISS_DELAY_MS = 1000;
 export const COUNTDOWN_FROM = 3;
+/** Online: the longest the host waits for the guest to confirm it has shown a pair, beyond the normal delay. */
+export const ACK_GRACE_MS = 4000;
 
 /** Authoritative game session. Runs in the host's browser (or the only browser in local play). */
 export class Session {
@@ -40,6 +42,8 @@ export class Session {
   private listeners = new Set<() => void>();
   private turnTimer: ReturnType<typeof setTimeout> | null = null;
   private resolveTimer: ReturnType<typeof setTimeout> | null = null;
+  private ackTimer: ReturnType<typeof setTimeout> | null = null;
+  private gate = { timeUp: false, acked: true };
   private countdownTimer: ReturnType<typeof setInterval> | null = null;
   private armedSeq = -1;
 
@@ -160,16 +164,41 @@ export class Session {
     this.listeners.clear();
   }
 
+  /** The guest tells the host it has shown the pair for the full delay, so a slow link can't shorten the reveal. */
+  ack(turnSeq: number): void {
+    if (this.game?.phase !== 'resolve' || this.game.turnSeq !== turnSeq) return;
+    this.gate.acked = true;
+    this.tryResolve();
+  }
+
   private scheduleResolve(): void {
     if (!this.game) return;
-    if (this.resolveTimer) clearTimeout(this.resolveTimer);
+    this.clearResolveTimers();
     const delay = isMatch(this.game) ? MATCH_DELAY_MS : MISS_DELAY_MS;
+    this.gate = { timeUp: false, acked: this.local };
     this.resolveTimer = setTimeout(() => {
-      this.resolveTimer = null;
-      if (!this.game) return;
-      this.game = resolve(this.game);
-      this.changed();
+      this.gate.timeUp = true;
+      this.tryResolve();
     }, delay);
+    if (!this.local) {
+      this.ackTimer = setTimeout(() => {
+        this.gate.acked = true;
+        this.tryResolve();
+      }, delay + ACK_GRACE_MS);
+    }
+  }
+
+  private tryResolve(): void {
+    if (!this.game || !this.gate.timeUp || !this.gate.acked) return;
+    this.clearResolveTimers();
+    this.game = resolve(this.game);
+    this.changed();
+  }
+
+  private clearResolveTimers(): void {
+    if (this.resolveTimer) clearTimeout(this.resolveTimer);
+    if (this.ackTimer) clearTimeout(this.ackTimer);
+    this.resolveTimer = this.ackTimer = null;
   }
 
   private armTurnTimer(): void {
@@ -194,8 +223,8 @@ export class Session {
 
   private clearTimers(): void {
     if (this.turnTimer) clearTimeout(this.turnTimer);
-    if (this.resolveTimer) clearTimeout(this.resolveTimer);
-    this.turnTimer = this.resolveTimer = null;
+    this.turnTimer = null;
+    this.clearResolveTimers();
     this.armedSeq = -1;
   }
 
